@@ -67,8 +67,13 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
   }
   //Launch Contact Picker or Address Book View Controller
   UIViewController *root = [[[UIApplication sharedApplication] delegate] window].rootViewController;
-  [root presentViewController:picker animated:YES completion:nil];
-  
+  BOOL modalPresent = (BOOL) (root.presentedViewController);
+  if (modalPresent) {
+	  UIViewController *parent = root.presentedViewController;
+	  [parent presentViewController:picker animated:YES completion:nil];
+  } else {
+	  [root presentViewController:picker animated:YES completion:nil];
+  }
   
 }
 
@@ -102,7 +107,7 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
 
 
 - (NSMutableDictionary *) emptyContactDict {
-  return [[NSMutableDictionary alloc] initWithObjects:@[@"", @"", @""] forKeys:@[@"name", @"phone", @"email"]];
+  return [[NSMutableDictionary alloc] initWithObjects:@[@"", @"", @""] forKeys:@[@"name", @"phoneNumbers", @"email"]];
 }
 
 /**
@@ -113,6 +118,9 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
   NSArray *names = (mName.length > 0) ? [NSArray arrayWithObjects:fName, mName, lName, nil] : [NSArray arrayWithObjects:fName, lName, nil];;
   return [names componentsJoinedByString:@" "];
 }
+//-(NSArray *) getPhoneNumbers:(NSArray *)phoneNumbers {
+//
+//}
 
 
 
@@ -136,8 +144,9 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
       
       //Return first phone number
       if([phoneNos count] > 0) {
-        CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[0]).value;
-        [contactData setValue:phone.stringValue forKey:@"phone"];
+        
+//        CNPhoneNumber *phone = ((CNLabeledValue *)phoneNos[0]).value;
+        [contactData setValue:[self getPhones:phoneNos] forKey:@"phoneNumbers"];
       }
       
       //Return first email address
@@ -169,6 +178,14 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
   
 }
 
+- (NSMutableArray*) getPhones:(NSArray*)phoneNos {
+  NSMutableArray *phones = [[NSMutableArray alloc] init];
+  for (CNPhoneNumber *phone in phoneNos) {
+    CNPhoneNumber *phoneNumber = ((CNLabeledValue *)phone).value;
+    [phones addObject:phoneNumber.stringValue];
+  }
+  return phones;
+}
 
 - (void)contactPickerDidCancel:(CNContactPickerViewController *)picker {
   [self pickerCancelled];
@@ -203,7 +220,7 @@ RCT_EXPORT_METHOD(getEmail:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseR
       ABMultiValueRef phoneMultiValue = ABRecordCopyValue(person, kABPersonPhoneProperty);
       NSArray *phoneNos = (__bridge NSArray *)ABMultiValueCopyArrayOfAllValues(phoneMultiValue);
       if([phoneNos count] > 0) {
-        [contactData setValue:phoneNos[0] forKey:@"phone"];
+        [contactData setValue:[self getPhones:phoneNos] forKey:@"phoneNumbers"];
       }
      
       //Return first email
